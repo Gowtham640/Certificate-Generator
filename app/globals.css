@@ -1,19 +1,244 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 @import "tailwindcss";
 
-:root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+/* Basic font - Custom certificate font (loaded first for priority) */
+@font-face {
+  font-family: 'Basic';
+  src: url('/font/Basic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  ascent-override: 90%;
+  descent-override: 25%;
+  line-gap-override: 0%;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-custom);
-  --font-mono: var(--font-custom);
+  /* Custom Design System Colors */
+  --color-bg-base: hsl(0 0% 10%);
+  --color-bg-surface: hsl(0 0% 14.1%);
+  --color-bg-raised: hsl(0 0% 18%);
+  --color-bg-hover: hsl(0 0% 22%);
+  --color-border-default: hsl(0 0% 23.9%);
+  --color-border-strong: hsl(0 0% 33.3%);
+  --color-text-primary: hsl(0 0% 94.1%);
+  --color-text-secondary: hsl(0 0% 60%);
+  --color-text-disabled: hsl(0 0% 33.3%);
+  --color-accent: hsl(41 58% 55%);
+  --color-accent-dim: hsl(36 52% 15%);
+  --color-danger: hsl(4 63% 46%);
+  --color-danger-dim: hsl(4 42% 12%);
+  --color-success: hsl(145 55% 42%);
+
+  /* shadcn/ui compatibility */
+  --color-background: hsl(0 0% 10%);
+  --color-foreground: hsl(0 0% 94.1%);
+  --color-card: hsl(0 0% 14.1%);
+  --color-card-foreground: hsl(0 0% 94.1%);
+  --color-popover: hsl(0 0% 14.1%);
+  --color-popover-foreground: hsl(0 0% 94.1%);
+  --color-primary: hsl(41 58% 55%);
+  --color-primary-foreground: hsl(0 0% 10%);
+  --color-secondary: hsl(0 0% 18%);
+  --color-secondary-foreground: hsl(0 0% 94.1%);
+  --color-muted: hsl(0 0% 18%);
+  --color-muted-foreground: hsl(0 0% 60%);
+  --color-destructive: hsl(4 63% 46%);
+  --color-destructive-foreground: hsl(0 0% 94.1%);
+  --color-border: hsl(0 0% 23.9%);
+  --color-input: hsl(0 0% 18%);
+  --color-ring: hsl(41 58% 55%);
+
+  --font-sans: 'FoundersGrotesk', 'Inter', system-ui, sans-serif;
+
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+:root {
+  /* CSS variables for components */
+  --bg-base: 0 0% 10%;
+  --bg-surface: 0 0% 14.1%;
+  --bg-raised: 0 0% 18%;
+  --bg-hover: 0 0% 22%;
+  --border: 0 0% 23.9%;
+  --border-strong: 0 0% 33.3%;
+  --text-primary: 0 0% 94.1%;
+  --text-secondary: 0 0% 60%;
+  --text-disabled: 0 0% 33.3%;
+  --accent: 41 58% 55%;
+  --accent-dim: 36 52% 15%;
+  --danger: 4 63% 46%;
+  --danger-dim: 4 42% 12%;
+  --success: 145 55% 42%;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+  /* shadcn compatibility */
+  --background: 0 0% 10%;
+  --foreground: 0 0% 94.1%;
+  --card: 0 0% 14.1%;
+  --card-foreground: 0 0% 94.1%;
+  --popover: 0 0% 14.1%;
+  --popover-foreground: 0 0% 94.1%;
+  --primary: 41 58% 55%;
+  --primary-foreground: 0 0% 10%;
+  --secondary: 0 0% 18%;
+  --secondary-foreground: 0 0% 94.1%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 60%;
+  --accent-ui: 41 58% 55%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 4 63% 46%;
+  --destructive-foreground: 0 0% 94.1%;
+  --border-default: 0 0% 23.9%;
+  --input: 0 0% 18%;
+  --ring: 41 58% 55%;
+  --radius: 8px;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+/* Force Basic font globally */
+html {
+  font-family: 'Basic', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-custom), Arial, Helvetica, sans-serif;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: 'Basic', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Typography utilities */
+.heading {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.subtext {
+  font-size: 12px;
+  font-weight: 400;
+  color: hsl(var(--text-secondary));
+}
+
+.label-sm {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(var(--text-secondary));
+}
+
+.stepper-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Background utilities */
+.bg-base {
+  background-color: hsl(var(--bg-base));
+}
+
+.bg-surface {
+  background-color: hsl(var(--bg-surface));
+}
+
+.bg-raised {
+  background-color: hsl(var(--bg-raised));
+}
+
+.bg-hover {
+  background-color: hsl(var(--bg-hover));
+}
+
+.bg-accent-dim {
+  background-color: hsl(var(--accent-dim));
+}
+
+.bg-danger-dim {
+  background-color: hsl(var(--danger-dim));
+}
+
+.bg-accent {
+  background-color: hsl(var(--accent));
+}
+
+/* Text color utilities */
+.text-primary {
+  color: hsl(var(--text-primary));
+}
+
+.text-secondary {
+  color: hsl(var(--text-secondary));
+}
+
+.text-disabled {
+  color: hsl(var(--text-disabled));
+}
+
+.text-accent {
+  color: hsl(var(--accent));
+}
+
+.text-danger {
+  color: hsl(var(--danger));
+}
+
+.text-success {
+  color: hsl(var(--success));
+}
+
+/* Border utilities */
+.border-border-default {
+  border-color: hsl(var(--border));
+}
+
+.border-border-strong {
+  border-color: hsl(var(--border-strong));
+}
+
+.border-accent {
+  border-color: hsl(var(--accent));
+}
+
+.border-danger {
+  border-color: hsl(var(--danger));
+}
+
+/* Shadow utilities */
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Dot grid pattern */
+.dot-grid {
+  background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Custom font utilities */
+.font-basic {
+  font-family: 'Basic', sans-serif !important;
 }

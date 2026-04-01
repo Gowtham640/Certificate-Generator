@@ -1,137 +1,153 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { CertificateTemplate, Member } from '../types/certificate';
-import { generateCertificateImage } from '../lib/certificateGenerator';
+import { useEffect, useRef, useState } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCertificate } from '@/app/context/CertificateContext';
 
 interface PreviewModalProps {
-  template: CertificateTemplate;
-  member: Member;
+  rowIndex: number;
   onClose: () => void;
+  onNavigate: (index: number) => void;
 }
 
-export default function PreviewModal({ template, member, onClose }: PreviewModalProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const PreviewModal = ({ rowIndex, onClose, onNavigate }: PreviewModalProps) => {
+  const { templateImage, csvData, placedFields, fieldSettings } = useCertificate();
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
 
+  // First effect: keyboard navigation
   useEffect(() => {
-    if (!member || !canvasRef.current || !template.imageUrl) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && rowIndex > 0) onNavigate(rowIndex - 1);
+      if (e.key === 'ArrowRight' && csvData && rowIndex < csvData.rows.length - 1) onNavigate(rowIndex + 1);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [rowIndex, csvData, onClose, onNavigate]);
 
-    setIsLoading(true);
-    setError(null);
-
-    generateCertificateImage(template.imageUrl, template.textBoxes, member)
-      .then((canvas) => {
-        if (canvasRef.current) {
-          const ctx = canvasRef.current.getContext('2d');
-          if (ctx) {
-            canvasRef.current.width = canvas.width;
-            canvasRef.current.height = canvas.height;
-            ctx.drawImage(canvas, 0, 0);
-          }
-        }
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error('Failed to generate preview:', err);
-        setError('Failed to generate certificate preview');
-        setIsLoading(false);
-      });
-  }, [member, template.imageUrl, template.textBoxes]);
-
-  // Close on Escape key
+  // Second effect: image scale tracking
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+    const img = imageRef.current;
+    if (!img || !templateImage) return;
+
+    const updateScale = () => {
+      const naturalWidth = img.naturalWidth || 1;
+      const displayedWidth = img.clientWidth || 1;
+      setPreviewScale(displayedWidth / naturalWidth);
     };
 
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(img);
+    img.addEventListener('load', updateScale);
 
-  // Get member display name
-  const getMemberName = () => {
-    const firstField = template.fields[0];
-    if (firstField && member[firstField.name]) {
-      return String(member[firstField.name]);
-    }
-    return 'Member';
-  };
+    return () => {
+      observer.disconnect();
+      img.removeEventListener('load', updateScale);
+    };
+  }, [templateImage, rowIndex]);
+
+  // Guard: all hooks called unconditionally above this point
+  if (!csvData || !templateImage) return null;
+
+  const row = csvData.rows[rowIndex];
+  const personName = row?.[0] || `Row ${rowIndex + 1}`;
+  const total = csvData.rows.length;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-200"
+      style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}
       onClick={onClose}
     >
       <div
-        className="bg-gray-800 rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-auto"
-        onClick={(e) => e.stopPropagation()}
+        className="bg-surface border border-border-strong shadow-lg max-w-4xl w-full mx-4 rounded-2xl animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h3 className="text-xl font-semibold text-white">
-            Certificate Preview - {getMemberName()}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl font-bold w-8 h-8 flex items-center justify-center rounded hover:bg-gray-700"
-            aria-label="Close"
-          >
-            ×
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-default">
+          <span className="text-text-primary text-sm font-semibold">
+            CERTIFICATE PREVIEW — {personName}
+          </span>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-text-secondary hover:text-text-primary rounded-lg hover:bg-hover transition-colors">
+            <X size={18} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {isLoading && (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                <p className="text-gray-300">Generating preview...</p>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <p className="text-red-400">{error}</p>
-                <button
-                  onClick={onClose}
-                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
+        {/* Body */}
+        <div
+          className="p-4 flex items-center justify-center"
+          style={{ maxHeight: '70vh', overflow: 'auto' }}
+        >
+          <div className="relative inline-block">
+            <img
+              ref={imageRef}
+              src={templateImage}
+              alt="Certificate"
+              className="max-w-full max-h-[60vh] block rounded-lg"
+            />
+            {placedFields.map(field => {
+              const settings = fieldSettings[field.columnName] || field.settings;
+              const colIndex = csvData.headers.indexOf(field.columnName);
+              const text = colIndex >= 0 ? row[colIndex] : field.columnName;
+              const scaledFontSize = settings.fontSize * previewScale;
+              return (
+                <div
+                  key={field.columnName}
+                  style={{
+                    position: 'absolute',
+                    left: `${field.x}%`,
+                    top: `${field.y}%`,
+                    fontFamily: settings.fontFamily,
+                    fontSize: `${scaledFontSize}px`,
+                    color: settings.color,
+                    fontWeight: settings.bold ? 700 : 400,
+                    fontStyle: settings.italic ? 'italic' : 'normal',
+                    textDecoration: settings.underline ? 'underline' : 'none',
+                    textAlign: settings.align,
+                    whiteSpace: 'nowrap',
+                    transform: settings.align === 'center' ? 'translateX(-50%)' : settings.align === 'right' ? 'translateX(-100%)' : 'none',
+                  }}
                 >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-
-          {!isLoading && !error && (
-            <div className="flex justify-center">
-              <canvas
-                ref={canvasRef}
-                className="max-w-full h-auto border border-gray-600 rounded"
-                style={{ display: 'block' }}
-              />
-            </div>
-          )}
+                  {text}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Footer */}
-        {!isLoading && !error && (
-          <div className="flex justify-end gap-2 p-4 border-t border-gray-700">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500"
-            >
-              Close
-            </button>
-          </div>
-        )}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border-default">
+          <button
+            onClick={() => rowIndex > 0 && onNavigate(rowIndex - 1)}
+            disabled={rowIndex === 0}
+            className={`w-9 h-9 flex items-center justify-center border border-border-default rounded-lg shadow-sm active:scale-95 transition-transform ${
+              rowIndex === 0 ? 'text-text-disabled cursor-not-allowed' : 'text-text-primary bg-raised'
+            }`}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-text-secondary text-xs">{rowIndex + 1} / {total}</span>
+          <button
+            onClick={() => rowIndex < total - 1 && onNavigate(rowIndex + 1)}
+            disabled={rowIndex === total - 1}
+            className={`w-9 h-9 flex items-center justify-center border border-border-default rounded-lg shadow-sm active:scale-95 transition-transform ${
+              rowIndex === total - 1 ? 'text-text-disabled cursor-not-allowed' : 'text-text-primary bg-raised'
+            }`}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div className="px-4 pb-3">
+          <p className="text-text-disabled text-xs text-center">
+            To make changes, close this preview and adjust fields or typography in the editor.
+          </p>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default PreviewModal;

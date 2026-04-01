@@ -1,39 +1,46 @@
-export interface TextBox {
-  id: string;
-  x: number;
-  y: number;
-  text: string;
-  fontSize: number;
+export interface FieldSettings {
   fontFamily: string;
+  fontSize: number;
   color: string;
-  alignment: 'left' | 'center' | 'right';
-  fieldName?: string; // Links to member field
-  width?: number;
-  height?: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  align: 'left' | 'center' | 'right';
 }
 
-export interface FieldDefinition {
-  name: string;
-  label: string;
-  type?: 'text' | 'email' | 'date' | 'custom';
-  required?: boolean;
+export interface PlacedField {
+  columnName: string;
+  x: number; // percentage of template width
+  y: number; // percentage of template height
+  settings: FieldSettings;
 }
 
-export interface Member {
-  id: string;
-  [key: string]: any; // Dynamic fields based on FieldDefinition
+export interface CsvData {
+  headers: string[];
+  rows: string[][];
+  filename: string;
 }
 
-export interface CertificateTemplate {
-  id: string;
-  imageUrl: string;
-  imageFile?: File;
-  textBoxes: TextBox[];
-  fields: FieldDefinition[];
+export interface HistoryEntry {
+  fields: PlacedField[];
 }
 
-export interface CertificateData {
-  template: CertificateTemplate;
-  members: Member[];
-  generatedAt: string;
-}
+export const defaultFieldSettings: FieldSettings = {
+  fontFamily: 'Inter',
+  fontSize: 24,
+  color: '#1a1a1a',
+  bold: false,
+  italic: false,
+  underline: false,
+  align: 'center',
+};
+
+export const fontOptions = [
+  'Basic',
+  'Inter',
+  'Georgia',
+  'Times New Roman',
+  'Courier New',
+  'Playfair Display',
+  'Montserrat',
+];
