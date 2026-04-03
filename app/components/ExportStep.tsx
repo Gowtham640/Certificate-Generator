@@ -1,15 +1,44 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { FileImage, FileText, ChevronDown } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { useCertificate } from '@/app/context/CertificateContext';
+import { Label } from '@/app/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/app/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
 
 type ExportFormat = 'png' | 'pdf';
 
+/** How each certificate file inside the ZIP should be named */
+type FileNameMode = 'column' | 'sequential';
+
 // Chunk size for batching exports into separate ZIP files
 const CHUNK_SIZE = 100;
+
+// Strip characters that are invalid in file names (Windows-safe)
+function sanitizeFileNameBase(raw: string): string {
+  const trimmed = raw.trim().slice(0, 120);
+  if (!trimmed) return '';
+  const withoutInvalid = trimmed.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_');
+  const collapsed = withoutInvalid.replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+  return collapsed || '';
+}
+
+/** Ensures unique base names within one ZIP chunk */
+function makeUniqueBaseName(tracker: Map<string, number>, base: string): string {
+  const next = (tracker.get(base) ?? 0) + 1;
+  tracker.set(base, next);
+  if (next === 1) return base;
+  return `${base}_${next}`;
+}
 
 const ExportStep = () => {
   const {
@@ -27,6 +56,18 @@ const ExportStep = () => {
   const [done, setDone] = useState(false);
   const [errors, setErrors] = useState(0);
   const [zipCount, setZipCount] = useState(0);
+
+  // Per-certificate file naming: column cell vs cert_0001 style
+  const [fileNameMode, setFileNameMode] = useState<FileNameMode>('column');
+  const [fileNameColumn, setFileNameColumn] = useState<string>('');
+
+  // Default filename column to first CSV header when data is available
+  useEffect(() => {
+    if (!csvData?.headers.length) return;
+    setFileNameColumn((prev) =>
+      prev && csvData.headers.includes(prev) ? prev : csvData.headers[0],
+    );
+  }, [csvData]);
 
   const generate = useCallback(async (format: ExportFormat) => {
     if (!csvData || !templateImage) return;
@@ -81,6 +122,12 @@ const ExportStep = () => {
       let errorCount = 0;
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
+    // Column index for filename (when using column mode)
+    const nameColIndex =
+      fileNameMode === 'column' && fileNameColumn
+        ? csvData.headers.indexOf(fileNameColumn)
+        : -1;
+
     // Process each chunk
     for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex++) {
       setCurrentChunk(chunkIndex + 1);
@@ -90,6 +137,8 @@ const ExportStep = () => {
       const chunkRows = selectedRows.slice(chunkStart, chunkEnd);
 
       const zip = new JSZip();
+      // Track duplicate sanitized names within this ZIP only
+      const uniqueNameTracker = new Map<string, number>();
 
       // Generate certificates for this chunk
       for (let i = 0; i < chunkRows.length; i++) {
@@ -148,14 +197,23 @@ const ExportStep = () => {
             }
           }
 
-          // Export certificate with proper naming
+          // File base name: column cell (row value) or sequential cert_0001
           const paddedIndex = String(globalIndex + 1).padStart(4, '0');
+          let fileBase: string;
+          if (fileNameMode === 'column' && nameColIndex >= 0) {
+            const cell = row[nameColIndex] ?? '';
+            const sanitized = sanitizeFileNameBase(cell);
+            const fallback = `cert_${paddedIndex}`;
+            fileBase = makeUniqueBaseName(uniqueNameTracker, sanitized || fallback);
+          } else {
+            fileBase = makeUniqueBaseName(uniqueNameTracker, `cert_${paddedIndex}`);
+          }
 
           if (format === 'png') {
             const blob = await new Promise<Blob>((resolve) => {
               canvas.toBlob(b => resolve(b!), 'image/png');
             });
-            zip.file(`cert_${paddedIndex}.png`, blob);
+            zip.file(`${fileBase}.png`, blob);
           } else if (jsPDF) {
             // Use canvas directly instead of toDataURL to save memory
             const doc = new jsPDF({
@@ -165,7 +223,7 @@ const ExportStep = () => {
             });
             doc.addImage(canvas, 'PNG', 0, 0, templateNaturalWidth, templateNaturalHeight);
             const pdfBlob = doc.output('blob');
-            zip.file(`cert_${paddedIndex}.pdf`, pdfBlob);
+            zip.file(`${fileBase}.pdf`, pdfBlob);
           }
 
           setProgress(globalIndex + 1);
@@ -210,7 +268,17 @@ const ExportStep = () => {
       setDone(true);
       setErrors(prev => prev + 1);
     }
-  }, [csvData, templateImage, templateNaturalWidth, templateNaturalHeight, placedFields, fieldSettings, deselectedRows]);
+  }, [
+    csvData,
+    templateImage,
+    templateNaturalWidth,
+    templateNaturalHeight,
+    placedFields,
+    fieldSettings,
+    deselectedRows,
+    fileNameMode,
+    fileNameColumn,
+  ]);
 
   if (!csvData) return null;
 
@@ -255,6 +323,45 @@ const ExportStep = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* How to name each exported file inside the ZIP */}
+        <div className="py-3 border-b border-border-default">
+          <span className="label-sm mb-3 block">FILE NAMES</span>
+          <RadioGroup
+            value={fileNameMode}
+            onValueChange={(v) => setFileNameMode(v as FileNameMode)}
+            className="gap-3"
+          >
+            <div className="flex items-start gap-3">
+              <RadioGroupItem value="column" id="fn-column" className="mt-1" />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="fn-column" className="text-text-primary text-sm font-normal cursor-pointer">
+                  Use a column value (each row uses that cell as the file name)
+                </Label>
+                {fileNameMode === 'column' && (
+                  <Select value={fileNameColumn} onValueChange={setFileNameColumn}>
+                    <SelectTrigger className="w-full max-w-xs bg-base border-border-default text-text-primary h-10">
+                      <SelectValue placeholder="Choose column" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {csvData.headers.map((h) => (
+                        <SelectItem key={h} value={h}>
+                          {h}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="sequential" id="fn-seq" />
+              <Label htmlFor="fn-seq" className="text-text-primary text-sm font-normal cursor-pointer">
+                Sequential (cert_0001, cert_0002, …)
+              </Label>
+            </div>
+          </RadioGroup>
         </div>
 
         {/* Generate Button */}
