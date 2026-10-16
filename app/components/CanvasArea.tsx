@@ -48,7 +48,8 @@ const CanvasArea = () => {
   }, [templateNaturalWidth, templateNaturalHeight, setZoom]);
 
   useEffect(() => {
-    handleFit();
+    const id = requestAnimationFrame(() => handleFit());
+    return () => cancelAnimationFrame(id);
   }, [templateImage, handleFit]);
 
   useEffect(() => {

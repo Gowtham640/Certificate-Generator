@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { PlacedField, CsvData, FieldSettings, defaultFieldSettings, HistoryEntry } from '@/app/types/certificate';
 
 const HISTORY_CAP = 50;
@@ -79,16 +79,21 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [zoom, setZoom] = useState(100);
   const [sampleRowIndex, setSampleRowIndex] = useState(0);
 
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const [historyLength, setHistoryLength] = useState(1);
   const historyRef = useRef<HistoryEntry[]>([cloneHistory([], {})]);
   const historyIndexRef = useRef(0);
-  const [, forceUpdate] = useState(0);
   const templateUrlRef = useRef<string | null>(null);
   const fieldSettingsRef = useRef(fieldSettings);
-  fieldSettingsRef.current = fieldSettings;
-  const placedFieldsRef = useRef(placedFields);
-  placedFieldsRef.current = placedFields;
   const csvDataRef = useRef(csvData);
-  csvDataRef.current = csvData;
+
+  useEffect(() => {
+    fieldSettingsRef.current = fieldSettings;
+  }, [fieldSettings]);
+
+  useEffect(() => {
+    csvDataRef.current = csvData;
+  }, [csvData]);
 
   const pushHistory = useCallback((fields: PlacedField[], settings?: Record<string, FieldSettings>) => {
     const snapshot = cloneHistory(fields, settings ?? fieldSettingsRef.current);
@@ -97,7 +102,8 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (next.length > HISTORY_CAP) next.splice(0, next.length - HISTORY_CAP);
     historyRef.current = next;
     historyIndexRef.current = next.length - 1;
-    forceUpdate(n => n + 1);
+    setHistoryIndex(next.length - 1);
+    setHistoryLength(next.length);
   }, []);
 
   const revokeTemplate = useCallback(() => {
@@ -134,12 +140,7 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       fieldSettingsRef.current = settings;
       return settings;
     });
-    setPlacedFields(prev => {
-      const allowed = new Set(data.headers);
-      const next = prev.filter(f => allowed.has(f.columnName));
-      placedFieldsRef.current = next;
-      return next;
-    });
+    setPlacedFields(prev => prev.filter(f => new Set(data.headers).has(f.columnName)));
     setDeselectedRows(new Set());
     setSampleRowIndex(0);
     if (selectedField && !data.headers.includes(selectedField)) setSelectedField(null);
@@ -156,7 +157,8 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setSampleRowIndex(0);
     historyRef.current = [cloneHistory([], {})];
     historyIndexRef.current = 0;
-    forceUpdate(n => n + 1);
+    setHistoryIndex(0);
+    setHistoryLength(1);
   }, []);
 
   const placeField = useCallback((columnName: string, x: number, y: number) => {
@@ -246,7 +248,7 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const entry = historyRef.current[historyIndexRef.current];
       setPlacedFields(JSON.parse(JSON.stringify(entry.fields)));
       setFieldSettings(JSON.parse(JSON.stringify(entry.fieldSettings)));
-      forceUpdate(n => n + 1);
+      setHistoryIndex(historyIndexRef.current);
     }
   }, []);
 
@@ -256,7 +258,7 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const entry = historyRef.current[historyIndexRef.current];
       setPlacedFields(JSON.parse(JSON.stringify(entry.fields)));
       setFieldSettings(JSON.parse(JSON.stringify(entry.fieldSettings)));
-      forceUpdate(n => n + 1);
+      setHistoryIndex(historyIndexRef.current);
     }
   }, []);
 
@@ -288,7 +290,8 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setSampleRowIndex(0);
     historyRef.current = [cloneHistory([], {})];
     historyIndexRef.current = 0;
-    forceUpdate(n => n + 1);
+    setHistoryIndex(0);
+    setHistoryLength(1);
   }, [revokeTemplate]);
 
   return (
@@ -305,8 +308,8 @@ export const CertificateProvider: React.FC<{ children: React.ReactNode }> = ({ c
       sampleRowIndex, setSampleRowIndex,
       zoom, setZoom,
       undo, redo,
-      canUndo: historyIndexRef.current > 0,
-      canRedo: historyIndexRef.current < historyRef.current.length - 1,
+      canUndo: historyIndex > 0,
+      canRedo: historyIndex < historyLength - 1,
       selectedRowCount,
       canEnterPosition,
       canEnterExport,
