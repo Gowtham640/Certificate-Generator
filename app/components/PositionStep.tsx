@@ -7,43 +7,48 @@ import FieldPropertiesPanel from './FieldPropertiesPanel';
 import RecipientList from './RecipientList';
 import PreviewModal from './PreviewModal';
 import { useCertificate } from '@/app/context/CertificateContext';
+import { PressDepth } from '@/app/components/interior/press-depth';
 
 const PositionStep = () => {
-  const { placedFields, selectedRowCount, setStep } = useCertificate();
+  const { placedFields, selectedRowCount, goToStep, canEnterExport } = useCertificate();
   const [previewRow, setPreviewRow] = useState<number | null>(null);
 
-  const canAdvance = placedFields.length > 0 && selectedRowCount > 0;
-
   return (
-    <div className="flex flex-1 min-h-0">
-      {/* Left Column */}
-      <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+      <div className="flex flex-col flex-1 min-h-0 min-w-0">
         <FieldCapsuleBar />
         <CanvasArea />
         <RecipientList onPreview={setPreviewRow} />
       </div>
 
-      {/* Right Column */}
-      <div className="w-[35%] min-w-[320px] max-w-[420px] border-l border-border-default bg-surface overflow-y-auto flex flex-col">
+      <div className="w-full lg:w-[35%] lg:min-w-[320px] lg:max-w-[420px] border-t lg:border-t-0 lg:border-l border-border-default bg-surface overflow-y-auto flex flex-col max-h-[40vh] lg:max-h-none">
         <div className="flex-1">
           <FieldPropertiesPanel />
         </div>
-        <div className="p-4 border-t border-border-default">
+        <div className="p-4 border-t border-border-default flex gap-3">
           <button
-            disabled={!canAdvance}
-            onClick={() => setStep(3)}
-            className={`w-full px-4 py-3 text-sm font-semibold uppercase tracking-wider rounded-lg transition-all active:scale-95 ${
-              canAdvance
-                ? 'bg-accent text-base shadow-md hover:shadow-lg hover:brightness-110'
-                : 'bg-raised text-text-disabled cursor-not-allowed'
-            }`}
+            type="button"
+            onClick={() => goToStep(1)}
+            className="px-4 py-3 text-sm font-semibold rounded-lg border border-border-default text-text-primary bg-raised"
           >
-            Continue to Export
+            Back
           </button>
+          <div className="flex-1">
+            <PressDepth
+              disabled={!canEnterExport}
+              onClick={() => goToStep(3)}
+              className={`w-full ${!canEnterExport ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              {placedFields.length === 0
+                ? 'Place a field first'
+                : selectedRowCount === 0
+                  ? 'Select a recipient'
+                  : 'Continue to Export'}
+            </PressDepth>
+          </div>
         </div>
       </div>
 
-      {/* Preview Modal */}
       {previewRow !== null && (
         <PreviewModal
           rowIndex={previewRow}

@@ -10,8 +10,8 @@ export interface FieldSettings {
 
 export interface PlacedField {
   columnName: string;
-  x: number; // percentage of template width
-  y: number; // percentage of template height
+  x: number;
+  y: number;
   settings: FieldSettings;
 }
 
@@ -23,6 +23,7 @@ export interface CsvData {
 
 export interface HistoryEntry {
   fields: PlacedField[];
+  fieldSettings: Record<string, FieldSettings>;
 }
 
 export const defaultFieldSettings: FieldSettings = {
@@ -36,7 +37,6 @@ export const defaultFieldSettings: FieldSettings = {
 };
 
 export const fontOptions = [
-  'Basic',
   'Inter',
   'Georgia',
   'Times New Roman',

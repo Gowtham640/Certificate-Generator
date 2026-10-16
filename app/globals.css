@@ -2,17 +2,6 @@
 
 @import "tailwindcss";
 
-/* Basic font - Custom certificate font (loaded first for priority) */
-@font-face {
-  font-family: 'Basic';
-  src: url('/font/Basic.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-  ascent-override: 90%;
-  descent-override: 25%;
-  line-gap-override: 0%;
-}
 
 @theme inline {
   /* Custom Design System Colors */
@@ -50,7 +39,7 @@
   --color-input: hsl(0 0% 18%);
   --color-ring: hsl(41 58% 55%);
 
-  --font-sans: 'FoundersGrotesk', 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 
   --radius-sm: 6px;
   --radius: 8px;
@@ -107,15 +96,14 @@
   border-color: hsl(var(--border));
 }
 
-/* Force Basic font globally */
 html {
-  font-family: 'Basic', 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 body {
   background-color: var(--color-bg-base);
   color: var(--color-text-primary);
-  font-family: 'Basic', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -239,6 +227,10 @@ body {
 }
 
 /* Custom font utilities */
-.font-basic {
-  font-family: 'Basic', sans-serif !important;
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
 }

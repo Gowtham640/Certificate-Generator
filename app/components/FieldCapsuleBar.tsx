@@ -22,11 +22,8 @@ const FieldCapsuleBar = () => {
           <div
             key={header}
             onClick={() => {
-              if (isPlaced) {
-                selectField(header);
-              } else {
-                startPlacing(header);
-              }
+              if (isPlaced) selectField(header);
+              else startPlacing(header);
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase cursor-pointer border transition-all active:scale-95 shadow-sm select-none ${
               isActive
@@ -37,19 +34,26 @@ const FieldCapsuleBar = () => {
             }`}
           >
             {isPlaced && <Check size={12} className="text-text-secondary" />}
-            <span>{header}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                removeField(header);
-              }}
-              className="ml-1 hover:text-danger transition-colors"
-            >
-              <X size={12} />
-            </button>
+            <span>{header || 'untitled'}</span>
+            {isPlaced && (
+              <button
+                type="button"
+                aria-label={`Remove ${header}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeField(header);
+                }}
+                className="ml-1 hover:text-danger transition-colors"
+              >
+                <X size={12} />
+              </button>
+            )}
           </div>
         );
       })}
+      {placingField && (
+        <span className="subtext whitespace-nowrap ml-2">Click the template to place · Esc to cancel</span>
+      )}
     </div>
   );
 };
