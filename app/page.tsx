@@ -1,14 +1,10 @@
 'use client';
 
-import { useCertificate } from '@/app/context/CertificateContext';
-import Stepper from '@/app/components/Stepper';
-import UploadStep from '@/app/components/UploadStep';
-import PositionStep from '@/app/components/PositionStep';
-import ExportStep from '@/app/components/ExportStep';
-import { HoldToConfirm } from '@/app/components/interior/hold-to-confirm';
+import { useRouter } from 'next/navigation';
+import { LoadingButton } from '@/app/components/interior/loading-button';
 
-function CertificateGeneratorContent() {
-  const { step, resetAll, canEnterPosition } = useCertificate();
+export default function HomePage() {
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-base flex flex-col">
@@ -17,28 +13,40 @@ function CertificateGeneratorContent() {
           <h1 className="text-text-primary text-2xl md:text-3xl font-semibold tracking-wide truncate">
             Certificate Generator
           </h1>
-          <p className="subtext mt-1 hidden sm:block">
-            Template + CSV, place fields, export a ZIP of PNG or PDF files.
-          </p>
+          <p className="subtext mt-1 hidden sm:block">Choose a mode.</p>
         </div>
-        {canEnterPosition && (
-          <HoldToConfirm onConfirm={resetAll} duration={1100} confirmLabel="Cleared">
-            Hold to reset
-          </HoldToConfirm>
-        )}
+        <LoadingButton
+          pendingLabel="Signing out"
+          successLabel="Signed out"
+          onAction={async () => {
+            await fetch('/api/auth/signout', { method: 'POST' });
+            router.replace('/login');
+          }}
+        >
+          Sign out
+        </LoadingButton>
       </header>
 
-      <Stepper />
-
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {step === 1 && <UploadStep />}
-        {step === 2 && <PositionStep />}
-        {step === 3 && <ExportStep />}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="grid w-full max-w-3xl gap-5 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => router.push('/campaign')}
+            className="rounded-xl border border-dashed border-border-strong bg-raised px-8 py-16 text-center hover:bg-hover"
+          >
+            <p className="text-text-primary text-lg font-semibold tracking-wide">Campaign</p>
+            <p className="subtext mt-2">Draft subject, content, and a recipient CSV.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/generate')}
+            className="rounded-xl border border-dashed border-border-strong bg-raised px-8 py-16 text-center hover:bg-hover"
+          >
+            <p className="text-text-primary text-lg font-semibold tracking-wide">Generate certificate</p>
+            <p className="subtext mt-2">The existing template, place, and export flow.</p>
+          </button>
+        </div>
       </div>
     </div>
   );
-}
-
-export default function Home() {
-  return <CertificateGeneratorContent />;
 }
