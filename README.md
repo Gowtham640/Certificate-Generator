@@ -2,19 +2,27 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Certificate Generator (this Mac uses **3001** because 3000 is already taken):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx next dev -p 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3001](http://localhost:3001).
+
+### Plunk dashboard (same repo)
+
+Requires [Colima](https://github.com/abiosoft/colima) (or Docker). Secrets live in `plunk/.env` (not committed).
+
+```bash
+cp plunk/.env.example plunk/.env
+# set DB_PASSWORD, JWT_SECRET, MINIO_ROOT_PASSWORD, S3_ACCESS_KEY_SECRET
+colima start
+npm run plunk:up
+```
+
+Dashboard: [http://app.localhost:8085](http://app.localhost:8085). Details in [`plunk/README.md`](plunk/README.md).
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

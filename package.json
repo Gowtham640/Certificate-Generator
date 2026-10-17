@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "plunk:up": "docker compose -f plunk/compose.yaml --env-file plunk/.env up -d",
+    "plunk:down": "docker compose -f plunk/compose.yaml --env-file plunk/.env down",
+    "plunk:logs": "docker compose -f plunk/compose.yaml --env-file plunk/.env logs -f plunk"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
