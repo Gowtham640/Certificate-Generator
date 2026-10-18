@@ -19,6 +19,7 @@ import { Modal } from '@/app/components/interior/modal';
 import { Dropdown } from '@/app/components/interior/dropdown';
 import { SegmentedControl } from '@/app/components/interior/segmented-control';
 import { GmailComposer } from '@/app/components/campaign/gmail-composer';
+import { FieldInfo } from '@/app/components/campaign/field-info';
 import { MAX_CSV_BYTES, formatBytes, isCsvFile } from '@/app/lib/files';
 
 const PAGE = 20;
@@ -279,32 +280,56 @@ export default function CampaignPage() {
         </aside>
 
         <main className="p-5 md:p-8 flex flex-col gap-4 min-h-0 overflow-auto">
-          <div className="grid gap-3 md:grid-cols-3">
+          <section>
+            <p className="text-[12.5px] font-medium text-text-secondary">From</p>
+            <p className="mt-1 mb-2 text-xs text-text-secondary">
+              Set who sends this campaign and where replies should go.
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="flex items-end gap-1">
+                <FloatingLabelInput
+                  label="From name"
+                  value={form.fromName}
+                  onChange={(value) => setForm((prev) => ({ ...prev, fromName: value }))}
+                />
+                <FieldInfo label="From name">
+                  The name people see next to the sender, for example Acme Events.
+                </FieldInfo>
+              </div>
+              <div className="flex items-end gap-1">
+                <FloatingLabelInput
+                  label="From email"
+                  type="email"
+                  invalid={form.fromEmail.length > 0 && !fromOk}
+                  value={form.fromEmail}
+                  onChange={(value) => setForm((prev) => ({ ...prev, fromEmail: value }))}
+                />
+                <FieldInfo label="From email">
+                  The address shown as the sender. It must be a mailbox your mail server can send from.
+                </FieldInfo>
+              </div>
+              <div className="flex items-end gap-1">
+                <FloatingLabelInput
+                  label="Reply-to email"
+                  type="email"
+                  invalid={form.replyTo.length > 0 && !isEmailAddress(form.replyTo)}
+                  value={form.replyTo}
+                  onChange={(value) => setForm((prev) => ({ ...prev, replyTo: value }))}
+                />
+                <FieldInfo label="Reply-to email">
+                  Where replies go. Use this when replies should not land in the from address.
+                </FieldInfo>
+              </div>
+            </div>
+          </section>
+          <div>
+            <p className="text-xs text-text-secondary">Write a short description of the email</p>
             <FloatingLabelInput
-              label="From name"
-              value={form.fromName}
-              onChange={(value) => setForm((prev) => ({ ...prev, fromName: value }))}
-            />
-            <FloatingLabelInput
-              label="From email"
-              type="email"
-              invalid={form.fromEmail.length > 0 && !fromOk}
-              value={form.fromEmail}
-              onChange={(value) => setForm((prev) => ({ ...prev, fromEmail: value }))}
-            />
-            <FloatingLabelInput
-              label="Reply-to email"
-              type="email"
-              invalid={form.replyTo.length > 0 && !isEmailAddress(form.replyTo)}
-              value={form.replyTo}
-              onChange={(value) => setForm((prev) => ({ ...prev, replyTo: value }))}
+              label="Subject"
+              value={form.subject}
+              onChange={(value) => setForm((prev) => ({ ...prev, subject: value }))}
             />
           </div>
-          <FloatingLabelInput
-            label="Subject"
-            value={form.subject}
-            onChange={(value) => setForm((prev) => ({ ...prev, subject: value }))}
-          />
           <GmailComposer
             value={form.content}
             onChange={(value) => setForm((prev) => ({ ...prev, content: value }))}
@@ -320,7 +345,7 @@ export default function CampaignPage() {
           >
             <input {...campaignDrop.getInputProps()} />
             <p className="text-text-primary text-sm font-medium tracking-wide">Upload CSV</p>
-            <p className="subtext mt-2">Email column is detected. Use {'{{name}}'} to fill a column named name.</p>
+            <p className="subtext mt-2">Email column is detected.</p>
           </div>
           {csvError ? <p className="mt-3 text-sm text-danger">{csvError}</p> : null}
           {form.emails.length > 0 ? (

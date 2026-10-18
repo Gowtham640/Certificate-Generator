@@ -141,6 +141,7 @@ export function GmailComposer({ value, onChange }: { value: string; onChange: (h
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="mb-1.5 text-[12.5px] font-medium text-text-secondary">Content</p>
+      <p className="mb-2 -mt-1 text-xs text-text-secondary">Write the body of the email.</p>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-border-default bg-white">
         <div className="flex flex-wrap items-center gap-0.5 border-b border-neutral-200 px-1.5 py-1">
           {ACTIONS.map((action) => (
