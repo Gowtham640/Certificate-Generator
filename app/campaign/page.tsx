@@ -20,6 +20,7 @@ import { Dropdown } from '@/app/components/interior/dropdown';
 import { SegmentedControl } from '@/app/components/interior/segmented-control';
 import { GmailComposer } from '@/app/components/campaign/gmail-composer';
 import { FieldInfo } from '@/app/components/campaign/field-info';
+import { htmlHasText } from '@/app/lib/mailer/html-text';
 import { MAX_CSV_BYTES, formatBytes, isCsvFile } from '@/app/lib/files';
 
 const PAGE = 20;
@@ -66,6 +67,7 @@ export default function CampaignPage() {
   const fromOk = isEmailAddress(form.fromEmail);
   const replyOk = isEmailAddress(form.replyTo || form.fromEmail);
   const canCommit = mappingOk && fromOk && replyOk && form.fromName.trim().length > 0;
+  const canSend = canCommit && form.subject.trim().length > 0 && htmlHasText(form.content);
 
   useEffect(() => {
     if (!mappingOk) setMappingOpen(true);
@@ -189,7 +191,7 @@ export default function CampaignPage() {
   };
 
   const sendTest = async () => {
-    if (!canCommit) throw new Error('Fix sender identity and merge fields first.');
+    if (!canSend) throw new Error('Subject, body, sender, and merge fields are required to send.');
     const emails = testMode === 'manual' ? testTags : testRows.map((row) => String(row.email ?? row.Email ?? ''));
     const rows = testMode === 'csv' ? testRows : testTags.map((email) => ({ email }));
     const res = await fetch('/api/campaigns/test-send', {
@@ -369,7 +371,7 @@ export default function CampaignPage() {
           <p className="mt-6 text-text-secondary text-xs tracking-wide uppercase">Sending options</p>
           <button
             type="button"
-            disabled={!canCommit}
+            disabled={!canSend}
             className="mt-3 w-full rounded-[10px] bg-accent text-black px-3 py-2 text-sm font-medium disabled:opacity-40"
             onClick={() => {
               setTestOpen(true);
@@ -379,11 +381,13 @@ export default function CampaignPage() {
           >
             Send test email
           </button>
-          {!canCommit ? (
+          {!canSend ? (
             <p className="mt-2 text-xs text-danger">
               {!fromOk || !form.fromName.trim() || !replyOk
                 ? 'Add from name, from email, and reply-to.'
-                : `Map missing fields: ${missing.map((t) => `{{${t}}}`).join(', ')}`}
+                : !form.subject.trim() || !htmlHasText(form.content)
+                  ? 'Add a subject and email body before sending.'
+                  : `Map missing fields: ${missing.map((t) => `{{${t}}}`).join(', ')}`}
             </p>
           ) : null}
         </aside>
@@ -462,7 +466,7 @@ export default function CampaignPage() {
         description="Manual addresses or another CSV. Capped at 25."
         maxWidth={520}
         footer={
-          <LoadingButton pendingLabel="Sending" successLabel="Sent" disabled={!canCommit} onAction={sendTest}>
+          <LoadingButton pendingLabel="Sending" successLabel="Sent" disabled={!canSend} onAction={sendTest}>
             Send tests
           </LoadingButton>
         }

@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server';
 import { applyMerge, autoMapTokens, isEmailAddress, mergeTokensFromText } from '@/app/lib/mailer/csv-emails';
+import { htmlHasText, plunkSubject } from '@/app/lib/mailer/html-text';
 import { sendPlunkEmail } from '@/app/lib/mailer/plunk-send';
 import { getSessionUser } from '@/app/lib/mailer/session';
+
+function recipientName(row: Record<string, string>, mapping: Record<string, string>): string | undefined {
+  const mapped = mapping.name ? row[mapping.name] : undefined;
+  const raw = mapped || row.name || row.Name;
+  const value = String(raw ?? '').trim();
+  return value || undefined;
+}
 
 export async function POST(request: Request) {
   const user = await getSessionUser();
@@ -20,9 +28,9 @@ export async function POST(request: Request) {
   };
 
   const fromEmail = String(body.from_email ?? '').toLowerCase();
-  const fromName = String(body.from_name ?? '');
+  const fromName = String(body.from_name ?? '').trim();
   const replyTo = String(body.reply_to ?? fromEmail).toLowerCase();
-  const subject = String(body.subject ?? '');
+  const subject = plunkSubject(String(body.subject ?? ''));
   const content = String(body.content ?? '');
   const headers = Array.isArray(body.csv_headers) ? body.csv_headers.map(String) : [];
   const tokens = mergeTokensFromText(`${subject}\n${content}`);
@@ -33,18 +41,18 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (!isEmailAddress(fromEmail) || !isEmailAddress(replyTo)) {
-    return NextResponse.json({ error: 'From email and reply-to must be valid addresses.' }, { status: 400 });
+  if (!fromName || !isEmailAddress(fromEmail) || !isEmailAddress(replyTo)) {
+    return NextResponse.json({ error: 'From name, from email, and reply-to are required.' }, { status: 400 });
+  }
+  if (!subject || !htmlHasText(content)) {
+    return NextResponse.json({ error: 'Plunk requires a subject and HTML body.' }, { status: 400 });
   }
 
   const rows = Array.isArray(body.rows) ? body.rows : [];
   const emails = Array.isArray(body.emails)
     ? body.emails.map((e) => e.toLowerCase()).filter(isEmailAddress)
     : [];
-  const jobs =
-    rows.length > 0
-      ? rows
-      : emails.map((email) => ({ email }));
+  const jobs = rows.length > 0 ? rows : emails.map((email) => ({ email }));
 
   if (jobs.length === 0) {
     return NextResponse.json({ error: 'Add at least one test recipient.' }, { status: 400 });
@@ -61,14 +69,14 @@ export async function POST(request: Request) {
       failed.push({ email: email || '(empty)', error: 'Not an email.' });
       continue;
     }
+    const name = recipientName(row, mapping);
     try {
       await sendPlunkEmail({
-        to: email,
+        to: name ? { name, email } : email,
         subject: applyMerge(subject, row, mapping),
         body: applyMerge(content, row, mapping),
-        fromEmail,
-        fromName,
-        replyTo,
+        from: { name: fromName, email: fromEmail },
+        reply: replyTo,
       });
       sent.push(email);
     } catch (err) {
