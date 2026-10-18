@@ -424,7 +424,7 @@ export default function CampaignPage() {
           auto={false}
           hasMore={emailShown < filteredEmails.length}
           onLoad={() => {
-            setEmailShown((n) => n + PAGE);
+            setEmailShown(filteredEmails.length);
           }}
           labels={{ idle: 'Load more', loading: 'Loading', error: 'Retry', end: 'All emails shown' }}
         />
