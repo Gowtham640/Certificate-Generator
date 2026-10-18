@@ -33,9 +33,9 @@ function plunkErrorMessage(raw: string): string {
 
 export async function sendPlunkEmail(input: PlunkSendPayload): Promise<void> {
   const base = process.env.PLUNK_API_URL?.replace(/\/$/, '');
-  const key = process.env.PLUNK_SECRET_KEY;
+  const key = process.env.PLUNK_API_KEY;
   if (!base || !key) {
-    throw new Error('Set PLUNK_API_URL and PLUNK_SECRET_KEY in .env to send test mail.');
+    throw new Error('Set PLUNK_API_URL and PLUNK_API_KEY in .env to send mail.');
   }
 
   const subject = plunkSubject(input.subject);
