@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
+import { ChevronLeft, ChevronRight, Home, Plus, Send } from 'lucide-react';
 import {
   autoMapTokens,
   isEmailAddress,
@@ -10,7 +11,7 @@ import {
   parseCsvTable,
 } from '@/app/lib/mailer/csv-emails';
 import type { CampaignDraft } from '@/app/lib/mailer/campaign-fields';
-import { LoadingButton } from '@/app/components/interior/loading-button';
+import { LoadingButton, useAsyncAction } from '@/app/components/interior/loading-button';
 import { FloatingLabelInput } from '@/app/components/interior/floating-label';
 import { TagInput } from '@/app/components/interior/tag-input';
 import { LoadMore } from '@/app/components/interior/load-more';
@@ -54,6 +55,8 @@ export default function CampaignPage() {
   const [testRows, setTestRows] = useState<Record<string, string>[]>([]);
   const [testError, setTestError] = useState('');
   const [testResult, setTestResult] = useState('');
+  const [draftsOpen, setDraftsOpen] = useState(true);
+  const [sendNote, setSendNote] = useState('');
 
   const tokens = useMemo(
     () => mergeTokensFromText(`${form.subject}\n${form.content}`),
@@ -67,7 +70,8 @@ export default function CampaignPage() {
   const fromOk = isEmailAddress(form.fromEmail);
   const replyOk = isEmailAddress(form.replyTo || form.fromEmail);
   const canCommit = mappingOk && fromOk && replyOk && form.fromName.trim().length > 0;
-  const canSend = canCommit && form.subject.trim().length > 0 && htmlHasText(form.content);
+  const canCompose = canCommit && form.subject.trim().length > 0 && htmlHasText(form.content);
+  const canSend = canCompose && form.emails.length > 0;
 
   useEffect(() => {
     if (!mappingOk) setMappingOpen(true);
@@ -190,8 +194,35 @@ export default function CampaignPage() {
     await loadDrafts();
   };
 
+  const newDraft = () => {
+    setForm(emptyDraft());
+    setCsvError('');
+    setSendNote('');
+  };
+
+  const sendCampaign = async () => {
+    if (!canSend) throw new Error('Subject, body, sender, recipients, and merge fields are required to send.');
+    setSendNote('');
+    const res = await fetch('/api/campaigns/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...body(),
+        emails: form.emails,
+        rows: form.recipientRows,
+      }),
+    });
+    const payload = (await res.json()) as { sent?: string[]; failed?: { email: string; error: string }[]; error?: string };
+    if (!res.ok) throw new Error(payload.error ?? 'Send failed.');
+    const fail = payload.failed ?? [];
+    setSendNote(`Sent ${payload.sent?.length ?? 0}. Failed ${fail.length}${fail[0] ? `: ${fail[0].email}` : ''}.`);
+    if (fail.length > 0) throw new Error(`${fail.length} mail(s) failed.`);
+  };
+
+  const sendAction = useAsyncAction({ action: sendCampaign });
+
   const sendTest = async () => {
-    if (!canSend) throw new Error('Subject, body, sender, and merge fields are required to send.');
+    if (!canCompose) throw new Error('Subject, body, sender, and merge fields are required to send.');
     const emails = testMode === 'manual' ? testTags : testRows.map((row) => String(row.email ?? row.Email ?? ''));
     const rows = testMode === 'csv' ? testRows : testTags.map((email) => ({ email }));
     const res = await fetch('/api/campaigns/test-send', {
@@ -231,57 +262,93 @@ export default function CampaignPage() {
   return (
     <div className="min-h-screen bg-base flex flex-col">
       <header className="bg-surface border-b border-border-default px-5 md:px-8 py-4 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-text-primary text-2xl md:text-3xl font-semibold tracking-wide truncate">Campaign</h1>
-          <p className="subtext mt-1 hidden sm:block">Drafts plus a capped test send.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" className="subtext" onClick={() => router.push('/')}>
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            type="button"
+            aria-label="Home"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-border-default bg-raised px-3 text-sm text-text-primary hover:bg-hover"
+            onClick={() => router.push('/')}
+          >
+            <Home className="size-4" strokeWidth={1.75} />
             Home
           </button>
+          <div className="min-w-0">
+            <h1 className="text-text-primary text-2xl md:text-3xl font-semibold tracking-wide truncate">Campaign</h1>
+            <p className="subtext mt-1 hidden sm:block">Drafts plus send.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
           <LoadingButton
             disabled={!canCommit}
             pendingLabel="Saving"
             successLabel="Saved"
             onAction={save}
+            className="border-border-default bg-raised text-text-primary shadow-none hover:bg-hover dark:bg-raised dark:text-text-primary"
           >
             Save draft
           </LoadingButton>
+          <button
+            type="button"
+            disabled={!canSend || sendAction.pending}
+            aria-busy={sendAction.pending || undefined}
+            className="inline-flex h-9 items-center gap-1.5 rounded-[9px] bg-accent px-3.5 text-[13px] font-medium text-black disabled:opacity-40"
+            onClick={() => sendAction.run()}
+          >
+            <Send className="size-4" strokeWidth={1.75} />
+            {sendAction.pending ? 'Sending' : sendAction.status === 'success' ? 'Sent' : sendAction.status === 'error' ? 'Retry' : 'Send'}
+          </button>
         </div>
       </header>
 
-      <div className="flex-1 grid min-h-0 lg:grid-cols-[220px_1fr_280px]">
-        <aside className="border-b lg:border-b-0 lg:border-r border-border-default p-4 overflow-auto">
-          <p className="text-text-secondary text-xs tracking-wide uppercase">Drafts</p>
+      <div className="flex-1 flex min-h-0">
+        <aside
+          className={`border-b lg:border-b-0 lg:border-r border-border-default overflow-auto shrink-0 transition-[width] duration-200 ${
+            draftsOpen ? 'w-44 p-3' : 'w-12 p-2'
+          }`}
+        >
+          <div className={`flex items-center ${draftsOpen ? 'justify-between' : 'flex-col gap-2'}`}>
+            {draftsOpen ? <p className="text-text-secondary text-xs tracking-wide uppercase">Drafts</p> : null}
+            <button
+              type="button"
+              aria-label={draftsOpen ? 'Collapse drafts' : 'Expand drafts'}
+              className="inline-flex size-8 items-center justify-center rounded-[9px] text-text-secondary hover:bg-raised hover:text-text-primary"
+              onClick={() => setDraftsOpen((open) => !open)}
+            >
+              {draftsOpen ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+            </button>
+          </div>
           <button
             type="button"
-            className="mt-3 w-full rounded-[10px] border border-border-default bg-raised px-3 py-2 text-left text-text-primary text-sm"
-            onClick={() => {
-              setForm(emptyDraft());
-              setCsvError('');
-            }}
+            aria-label="New draft"
+            className={`mt-3 inline-flex items-center justify-center rounded-[10px] border border-border-default bg-raised text-text-primary text-sm hover:bg-hover ${
+              draftsOpen ? 'w-full gap-1.5 px-3 py-2' : 'size-8 mx-auto'
+            }`}
+            onClick={newDraft}
           >
-            New draft
+            <Plus className="size-4 shrink-0" strokeWidth={1.75} />
+            {draftsOpen ? 'New draft' : null}
           </button>
-          <ul className="mt-3 space-y-2">
-            {drafts.map((draft) => (
-              <li key={draft.id}>
-                <button
-                  type="button"
-                  onClick={() => applyDraft(draft)}
-                  className={`w-full rounded-[10px] px-3 py-2 text-left text-sm ${
-                    form.activeId === draft.id ? 'bg-accent-dim text-accent' : 'bg-raised text-text-primary'
-                  }`}
-                >
-                  {draft.subject.trim() || 'Untitled'}
-                  <span className="block text-xs text-text-secondary">{draft.recipients.length} recipients</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {draftsOpen ? (
+            <ul className="mt-3 space-y-2">
+              {drafts.map((draft) => (
+                <li key={draft.id}>
+                  <button
+                    type="button"
+                    onClick={() => applyDraft(draft)}
+                    className={`w-full rounded-[10px] px-3 py-2 text-left text-sm ${
+                      form.activeId === draft.id ? 'bg-accent-dim text-accent' : 'bg-raised text-text-primary'
+                    }`}
+                  >
+                    {draft.subject.trim() || 'Untitled'}
+                    <span className="block text-xs text-text-secondary">{draft.recipients.length} recipients</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </aside>
 
-        <main className="p-5 md:p-8 flex flex-col gap-4 min-h-0 overflow-auto">
+        <main className="flex-1 min-w-0 p-5 md:p-8 flex flex-col gap-4 min-h-0 overflow-auto">
           <section>
             <p className="text-[12.5px] font-medium text-text-secondary">From</p>
             <p className="mt-1 mb-2 text-xs text-text-secondary">
@@ -338,7 +405,7 @@ export default function CampaignPage() {
           />
         </main>
 
-        <aside className="border-t lg:border-t-0 lg:border-l border-border-default p-4 overflow-auto">
+        <aside className="w-full lg:w-[280px] shrink-0 border-t lg:border-t-0 lg:border-l border-border-default p-4 overflow-auto">
           <div
             {...campaignDrop.getRootProps()}
             className={`rounded-[14px] border border-dashed px-4 py-10 text-center cursor-pointer ${
@@ -371,8 +438,8 @@ export default function CampaignPage() {
           <p className="mt-6 text-text-secondary text-xs tracking-wide uppercase">Sending options</p>
           <button
             type="button"
-            disabled={!canSend}
-            className="mt-3 w-full rounded-[10px] bg-accent text-black px-3 py-2 text-sm font-medium disabled:opacity-40"
+            disabled={!canCompose}
+            className="mt-3 w-full rounded-[10px] border border-border-default bg-raised px-3 py-2 text-sm font-medium text-text-primary disabled:opacity-40"
             onClick={() => {
               setTestOpen(true);
               setTestResult('');
@@ -387,7 +454,9 @@ export default function CampaignPage() {
                 ? 'Add from name, from email, and reply-to.'
                 : !form.subject.trim() || !htmlHasText(form.content)
                   ? 'Add a subject and email body before sending.'
-                  : `Map missing fields: ${missing.map((t) => `{{${t}}}`).join(', ')}`}
+                  : form.emails.length === 0
+                    ? 'Upload a CSV of recipients before Send.'
+                    : `Map missing fields: ${missing.map((t) => `{{${t}}}`).join(', ')}`}
             </p>
           ) : null}
         </aside>
@@ -466,7 +535,7 @@ export default function CampaignPage() {
         description="Manual addresses or another CSV. Capped at 25."
         maxWidth={520}
         footer={
-          <LoadingButton pendingLabel="Sending" successLabel="Sent" disabled={!canSend} onAction={sendTest}>
+          <LoadingButton pendingLabel="Sending" successLabel="Sent" disabled={!canCompose} onAction={sendTest}>
             Send tests
           </LoadingButton>
         }
